@@ -1,190 +1,39 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[202]:
-
-
-import pandas as pd
+# Importing the libraries
 import numpy as np
-
-
-# In[203]:
-
-
-df = pd.read_csv('data-jumlah-lembaga-mahasiswa-baru-mahasiswa-terdaftar-lulusan-dan-tenaga-edukatif-perguruan-tinggi-negeri-dan-swasta-tahun-2011-sd-2013.csv')
-df
-
-
-# In[204]:
-
-
-df['sum'] = df[['pt_negeri','pt_swasta']].sum(axis=1)
-df
-
-
-# In[205]:
-
-
-columns = ['pt_negeri', 'pt_swasta']
-df.drop(columns, inplace=True, axis=1)
-df
-
-
-# In[206]:
-
-
-mhsbaru = df[df['indikator'].str.contains('Mahasiswa Baru')]
-mhsbaru
-
-
-# In[207]:
-
-
-mhslulus = df[df['indikator'].str.contains('Lulusan')]
-mhslulus
-
-
-# In[208]:
-
-
-df = pd.merge(mhsbaru, mhslulus, on='tahun', how='inner')
-df
-
-
-# In[209]:
-
-
-df = df.rename(columns={'sum_x':'MahasiswaBaru','sum_y':'Lulusan'})
-df
-
-
-# In[210]:
-
-
-columns = ['indikator_x', 'indikator_y']
-df.drop(columns, inplace=True, axis=1)
-df
-
-
-# In[211]:
-
-
-import numpy as np
-import skfuzzy as fuzz
 import matplotlib.pyplot as plt
+import pandas as pd
+import pickle
 
+dataset = pd.read_csv('hiring.csv')
 
-# In[229]:
+dataset['experience'].fillna(0, inplace=True)
 
+dataset['test_score'].fillna(dataset['test_score'].mean(), inplace=True)
 
-def RangeSubjektif(_low, _high, _step):
-    subjektif = np.arange(_low, _high, _step)
-    return subjektif
+X = dataset.iloc[:, :3]
 
-def AlgortimaFuzzy1(_rule, _range_subjektif, _title):
-    lo = fuzz.trimf(_range_subjektif, _rule[0])
-    hi = fuzz.trimf(_range_subjektif, _rule[1])
-    
-    fig, ax = plt.subplots(figsize=(10,4))
-    ax.plot(_range_subjektif, lo, 'b', linewidth=1.5, label='Low')
-    ax.plot(_range_subjektif, hi, 'g', linewidth=1.5, label='High')
-    
-    ax.set_title(_title)
-    ax.legend()
-    
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
-    
-    plt.tight_layout()
-    plt.show()
-    
-    return lo, hi
+#Converting words to integer values
+def convert_to_int(word):
+    word_dict = {'one':1, 'two':2, 'three':3, 'four':4, 'five':5, 'six':6, 'seven':7, 'eight':8,
+                'nine':9, 'ten':10, 'eleven':11, 'twelve':12, 'zero':0, 0: 0}
+    return word_dict[word]
 
-def AlgortimaFuzzy2(_rule, _range_subjektif, _title):
-    lo = fuzz.trimf(_range_subjektif, _rule[0])
-    hi = fuzz.trimf(_range_subjektif, _rule[1])
-    
-    fig, ax = plt.subplots(figsize=(10,4))
-    ax.plot(_range_subjektif, lo, 'b', linewidth=1.5, label='Low')
-    ax.plot(_range_subjektif, hi, 'g', linewidth=1.5, label='High')
-    
-    ax.set_title(_title)
-    ax.legend()
-    
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
-    
-    plt.tight_layout()
-    plt.show()
-    
-    return lo, hi
+X['experience'] = X['experience'].apply(lambda x : convert_to_int(x))
 
+y = dataset.iloc[:, -1]
 
-# In[214]:
+#Splitting Training and Test Set
+#Since we have a very small dataset, we will train our model with all availabe data.
 
+from sklearn.linear_model import LinearRegression
+regressor = LinearRegression()
 
-def FungsiKeanggotaan(_range, _lo, _hi, _nilai):
-    lo = fuzz.interp_membership(_range, _lo, _nilai)
-    hi = fuzz.interp_membership(_range, _hi, _nilai)
-    
-    return lo,hi
+#Fitting model with trainig data
+regressor.fit(X, y)
 
+# Saving model to disk
+pickle.dump(regressor, open('model.pkl','wb'))
 
-# In[225]:
-
-
-def Status(_keanggotaan):
-    status =""
-    if _keanggotaan[0] > _keanggotaan[1]:
-        status = "low"
-    elif _keanggotaan[0] < _keanggotaan[1]:
-        status = "high"
-        
-    return status
-
-
-# In[238]:
-
-
-def RuleBased(_status_MahasiswaBaru, _statusLulusan):
-    jumlah_MahasiswaBaru = _status_MahasiswaBaru
-    jumlah_Lulusan = _statusLulusan
-    
-    persaingan_kerja =""
-    
-    if jumlah_MahasiswaBaru == 'low' and jumlah_Lulusan == 'low':
-        persaingan_kerja = "lemah"
-    elif jumlah_MahasiswaBaru == 'low' and jumlah_Lulusan == 'high':
-        persaingan_kerja = "lemah"
-    elif jumlah_MahasiswaBaru == 'high' and jumlah_Lulusan == 'low':
-        persaingan_kerja = "kuat"
-    elif jumlah_MahasiswaBaru == 'high' and jumlah_Lulusan == 'high':
-        persaingan_kerja = "kuat"
-    else :
-        persaingan_kerja = "tidak diketahui"
-        
-    return persaingan_kerja
-
-
-# In[230]:
-
-
-xMahasiswaBaru = RangeSubjektif(260000,350000,1)
-rMahasiswaBaru = np.array([
-    [0, 260000, 280000],
-    [265000, 350000, 350000]
-])
-
-xLulusan = RangeSubjektif(200000,240000,1)
-rLulusan = np.array([
-    [0, 200000, 225000],
-    [220000, 240000, 240000]
-])
-
-lo_MahasiswaBaru, hi_MahasiswaBaru = AlgortimaFuzzy1(rMahasiswaBaru, xMahasiswaBaru, 'Mahasiswa Baru')
-lo_Lulusan, hi_Lulusan = AlgortimaFuzzy2(rLulusan, xLulusan, 'Lulusan')
-
+# Loading model to compare the results
+model = pickle.load(open('model.pkl','rb'))
+print(model.predict([[2, 9, 6]]))
