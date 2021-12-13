@@ -1,1 +1,1 @@
-# fuzzylogic
+# prediksi penghasilan
